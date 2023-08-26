@@ -1,310 +1,243 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# ## Credit Card Fraud Detection Project
-
-# In[17]:
-
-
-# Import the necessary modules
-
-import numpy as np
+import timeit
 import pandas as pd
 import matplotlib.pyplot as plt
-from collections import Counter
-import itertools
+import plotly.express as px
+import numpy as np
+import warnings
+warnings.filterwarnings("ignore")
 
-from sklearn.preprocessing import StandardScaler
+import streamlit as st
+st.title('Credit Card Fraud Detection!')
+
+df=st.cache(pd.read_csv)('creditcard.csv')
+
+#df = df.sample(frac=0.1, random_state = 48)
+
+# Print shape and description of the data
+if st.sidebar.checkbox('Show what the dataframe looks like'):
+    st.write(df.head(100))
+    st.write('Shape of the dataframe: ',df.shape)
+    st.write('Data decription: \n',df.describe())
+
+
+# Print valid and fraud transactions
+fraud=df[df.Class==1]
+valid=df[df.Class==0]
+outlier_percentage=(df.Class.value_counts()[1]/df.Class.value_counts()[0])*100
+
+if st.sidebar.checkbox('Show fraud and valid transaction details'):
+    st.write('Fraudulent transactions are: %.3f%%'%outlier_percentage)
+    st.write('Fraud Cases: ',len(fraud))
+    st.write('Valid Cases: ',len(valid))
+
+    
+#Obtaining X (features) and y (labels)
+X=df.drop(['Class'], axis=1)
+y=df.Class
+
+# Split the data into training and testing sets
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.metrics import accuracy_score, precision_score, confusion_matrix, recall_score, f1_score
-
-
-# In[2]:
-
-
-# Load the csv file
-
-dataframe = pd.read_csv("./Desktop/DataFlair/credit_card_fraud_detection/creditcard.csv")
-dataframe.head()
-
-
-# ### Perform Exploratory Data Analysis
-
-# In[3]:
-
-
-dataframe.info()
-
-
-# In[4]:
-
-
-# Check for null values
-
-dataframe.isnull().values.any()
-
-
-# In[5]:
-
-
-dataframe["Amount"].describe()
-
-
-# In[6]:
-
-
-non_fraud = len(dataframe[dataframe.Class == 0])
-fraud = len(dataframe[dataframe.Class == 1])
-fraud_percent = (fraud / (fraud + non_fraud)) * 100
-
-print("Number of Genuine transactions: ", non_fraud)
-print("Number of Fraud transactions: ", fraud)
-print("Percentage of Fraud transactions: {:.4f}".format(fraud_percent))
-
-
-# In[7]:
-
-
-# Visualize the "Labels" column in our dataset
-
-labels = ["Genuine", "Fraud"]
-count_classes = dataframe.value_counts(dataframe['Class'], sort= True)
-count_classes.plot(kind = "bar", rot = 0)
-plt.title("Visualization of Labels")
-plt.ylabel("Count")
-plt.xticks(range(2), labels)
-plt.show()
-
-
-# In[8]:
-
-
-# Perform Scaling
-scaler = StandardScaler()
-dataframe["NormalizedAmount"] = scaler.fit_transform(dataframe["Amount"].values.reshape(-1, 1))
-dataframe.drop(["Amount", "Time"], inplace= True, axis= 1)
-
-Y = dataframe["Class"]
-X = dataframe.drop(["Class"], axis= 1)
-
-
-# In[9]:
-
-
-Y.head()
-
-
-# In[10]:
-
-
-# Split the data
-(train_X, test_X, train_Y, test_Y) = train_test_split(X, Y, test_size= 0.3, random_state= 42)
-
-print("Shape of train_X: ", train_X.shape)
-print("Shape of test_X: ", test_X.shape)
-
-
-# Let's train different models on our dataset and observe which algorithm works better for our problem.
-# 
-# Let's apply Random Forests and Decision Trees algorithms to our dataset.
-
-# In[11]:
-
-
-# Decision Tree Classifier
-decision_tree = DecisionTreeClassifier()
-decision_tree.fit(train_X, train_Y)
-
-predictions_dt = decision_tree.predict(test_X)
-decision_tree_score = decision_tree.score(test_X, test_Y) * 100
-
-
-# In[12]:
-
-
-# Random Forest
-random_forest = RandomForestClassifier(n_estimators= 100)
-random_forest.fit(train_X, train_Y)
-
-predictions_rf = random_forest.predict(test_X)
-random_forest_score = random_forest.score(test_X, test_Y) * 100
-
-
-# In[13]:
-
-
-# Print scores of our classifiers
-
-print("Random Forest Score: ", random_forest_score)
-print("Decision Tree Score: ", decision_tree_score)
-
-
-# In[14]:
-
-
-# The below function is directly taken from the scikit-learn website to plot the confusion matrix
-
-def plot_confusion_matrix(cm, classes, normalize=False, title='Confusion Matrix', cmap=plt.cm.Blues):
-    """
-    This function prints and plots the confusion matrix.
-    Normalization can be applied by setting `normalize=True`.
-    """
-    if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-        print("Normalized confusion matrix")
-    else:
-        print('Confusion matrix, without normalization')
-
-    plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
-    tick_marks = np.arange(len(classes))
-    plt.xticks(tick_marks, classes, rotation=0)
-    plt.yticks(tick_marks, classes)
-
-    fmt = '.2f' if normalize else 'd'
-    thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
-        plt.text(j, i, format(cm[i, j], fmt), horizontalalignment="center", color="white" if cm[i, j] > thresh else "black")
-
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    plt.tight_layout()
-
-
-# In[22]:
-
-
-# Plot confusion matrix for Decision Trees
-
-confusion_matrix_dt = confusion_matrix(test_Y, predictions_dt.round())
-print("Confusion Matrix - Decision Tree")
-print(confusion_matrix_dt)
-
-
-# In[18]:
-
-
-plot_confusion_matrix(confusion_matrix_dt, classes=[0, 1], title= "Confusion Matrix - Decision Tree")
-
-
-# In[20]:
-
-
-# Plot confusion matrix for Random Forests
-
-confusion_matrix_rf = confusion_matrix(test_Y, predictions_rf.round())
-print("Confusion Matrix - Random Forest")
-print(confusion_matrix_rf)
-
-
-# In[23]:
-
-
-plot_confusion_matrix(confusion_matrix_rf, classes=[0, 1], title= "Confusion Matrix - Random Forest")
-
-
-# In[24]:
-
-
-# The below function prints the following necesary metrics
-
-def metrics(actuals, predictions):
-    print("Accuracy: {:.5f}".format(accuracy_score(actuals, predictions)))
-    print("Precision: {:.5f}".format(precision_score(actuals, predictions)))
-    print("Recall: {:.5f}".format(recall_score(actuals, predictions)))
-    print("F1-score: {:.5f}".format(f1_score(actuals, predictions)))
+size = st.sidebar.slider('Test Set Size', min_value=0.2, max_value=0.4)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = size, random_state = 42)
+
+#Print shape of train and test sets
+if st.sidebar.checkbox('Show the shape of training and test set features and labels'):
+    st.write('X_train: ',X_train.shape)
+    st.write('y_train: ',y_train.shape)
+    st.write('X_test: ',X_test.shape)
+    st.write('y_test: ',y_test.shape)
     
 
-
-# In[25]:
-
-
-print("Evaluation of Decision Tree Model")
-print()
-metrics(test_Y, predictions_dt.round())
-
-
-# In[26]:
+#Import classification models and metrics
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier,ExtraTreesClassifier
+from sklearn.model_selection import cross_val_score
 
 
-print("Evaluation of Random Forest Model")
-print()
-metrics(test_Y, predictions_rf.round())
+logreg=LogisticRegression()
+svm=SVC()
+knn=KNeighborsClassifier()
+etree=ExtraTreesClassifier(random_state=42)
+rforest=RandomForestClassifier(random_state=42)
 
 
-# Clearly, Random Forest model works better than Decision Trees
-
-# But, if we clearly observe our dataset suffers a serious problem of **class imbalance**. 
-# The genuine (not fraud) transactions are more than 99% with the fraud transactions constituting of 0.17%.
-# 
-# With such kind of distribution, if we train our model without taking care of the imbalance issues, it predicts the label with higher importance given to genuine transactions (as there are more data about them) and hence obtains more accuracy.
-
-# The class imbalance problem can be solved by various techniques. **Over sampling** is one of them.
-#  
-# One approach to addressing imbalanced datasets is to oversample the minority class. The simplest approach involves duplicating examples in the minority class, although these examples don’t add any new information to the model. 
-# 
-# Instead, new examples can be synthesized from the existing examples. This is a type of data augmentation for the minority class and is referred to as the **Synthetic Minority Oversampling Technique**, or **SMOTE** for short.
-
-# In[27]:
+features=X_train.columns.tolist()
 
 
-# Performing oversampling on RF and DT
+#Feature selection through feature importance
+@st.cache
+def feature_sort(model,X_train,y_train):
+    #feature selection
+    mod=model
+    # fit the model
+    mod.fit(X_train, y_train)
+    # get importance
+    imp = mod.feature_importances_
+    return imp
 
+#Classifiers for feature importance
+clf=['Extra Trees','Random Forest']
+mod_feature = st.sidebar.selectbox('Which model for feature importance?', clf)
+
+start_time = timeit.default_timer()
+if mod_feature=='Extra Trees':
+    model=etree
+    importance=feature_sort(model,X_train,y_train)
+elif mod_feature=='Random Forest':
+    model=rforest
+    importance=feature_sort(model,X_train,y_train)
+elapsed = timeit.default_timer() - start_time
+st.write('Execution Time for feature selection: %.2f minutes'%(elapsed/60))    
+
+#Plot of feature importance
+if st.sidebar.checkbox('Show plot of feature importance'):
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.title('Feature Importance')
+    plt.xlabel('Feature (Variable Number)')
+    plt.ylabel('Importance')
+    st.pyplot()
+
+feature_imp=list(zip(features,importance))
+feature_sort=sorted(feature_imp, key = lambda x: x[1])
+
+n_top_features = st.sidebar.slider('Number of top features', min_value=5, max_value=20)
+
+top_features=list(list(zip(*feature_sort[-n_top_features:]))[0])
+
+if st.sidebar.checkbox('Show selected top features'):
+    st.write('Top %d features in order of importance are: %s'%(n_top_features,top_features[::-1]))
+
+X_train_sfs=X_train[top_features]
+X_test_sfs=X_test[top_features]
+
+X_train_sfs_scaled=X_train_sfs
+X_test_sfs_scaled=X_test_sfs
+
+
+
+#Import performance metrics, imbalanced rectifiers
+from sklearn.metrics import  confusion_matrix,classification_report,matthews_corrcoef
 from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import NearMiss
+np.random.seed(42) #for reproducibility since SMOTE and Near Miss use randomizations
 
-X_resampled, Y_resampled = SMOTE().fit_resample(X, Y)
-print("Resampled shape of X: ", X_resampled.shape)
-print("Resampled shape of Y: ", Y_resampled.shape)
+smt = SMOTE()
+nr = NearMiss()
 
-value_counts = Counter(Y_resampled)
-print(value_counts)
+def compute_performance(model, X_train, y_train,X_test,y_test):
+    start_time = timeit.default_timer()
+    scores = cross_val_score(model, X_train, y_train, cv=3, scoring='accuracy').mean()
+    'Accuracy: ',scores
+    model.fit(X_train,y_train)
+    y_pred = model.predict(X_test)
+    cm=confusion_matrix(y_test,y_pred)
+    'Confusion Matrix: ',cm  
+    cr=classification_report(y_test, y_pred)
+    'Classification Report: ',cr
+    mcc= matthews_corrcoef(y_test, y_pred)
+    'Matthews Correlation Coefficient: ',mcc
+    elapsed = timeit.default_timer() - start_time
+    'Execution Time for performance computation: %.2f minutes'%(elapsed/60)
+    
 
-(train_X, test_X, train_Y, test_Y) = train_test_split(X_resampled, Y_resampled, test_size= 0.3, random_state= 42)
-
-
-# In[35]:
-
-
-# Build the Random Forest classifier on the new dataset
-
-rf_resampled = RandomForestClassifier(n_estimators = 100)
-rf_resampled.fit(train_X, train_Y)
-
-predictions_resampled = rf_resampled.predict(test_X)
-random_forest_score_resampled = rf_resampled.score(test_X, test_Y) * 100
-
-
-# In[36]:
-
-
-# Visualize the confusion matrix
-
-cm_resampled = confusion_matrix(test_Y, y_predict.round())
-print("Confusion Matrix - Random Forest")
-print(cm_resampled)
-
-
-# In[37]:
-
-
-plot_confusion_matrix(cm_resampled, classes=[0, 1], title= "Confusion Matrix - Random Forest After Oversampling")
-
-
-# In[38]:
-
-
-print("Evaluation of Random Forest Model")
-print()
-metrics(test_Y, predictions_resampled.round())
-
-
-# Now it is evident that after addressing the class imbalance problem, our Random forest classifier with SMOTE performs far better than the Random forest classifier withour SMOTE
-
-# In[ ]:
-
-
+#Run different classification models with rectifiers
+if st.sidebar.checkbox('Run a credit card fraud detection model'):
+    
+    alg=['Extra Trees','Random Forest','k Nearest Neighbor','Support Vector Machine','Logistic Regression']
+    classifier = st.sidebar.selectbox('Which algorithm?', alg)
+    rectifier=['SMOTE','Near Miss','No Rectifier']
+    imb_rect = st.sidebar.selectbox('Which imbalanced class rectifier?', rectifier) 
+    
+    if classifier=='Logistic Regression':
+        model=logreg
+        if imb_rect=='No Rectifier':
+            compute_performance(model, X_train_sfs_scaled, y_train,X_test_sfs_scaled,y_test)
+        elif imb_rect=='SMOTE':
+                rect=smt
+                st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+                X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+                st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+                compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)
+        elif imb_rect=='Near Miss':
+            rect=nr
+            st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+            X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+            st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+            compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)
+    
+        
+    elif classifier == 'k Nearest Neighbor':
+        model=knn
+        if imb_rect=='No Rectifier':
+            compute_performance(model, X_train_sfs_scaled, y_train,X_test_sfs_scaled,y_test)
+        elif imb_rect=='SMOTE':
+                rect=smt
+                st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+                X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+                st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+                compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)
+        elif imb_rect=='Near Miss':
+            rect=nr
+            st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+            X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+            st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+            compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)    
+    
+    elif classifier == 'Support Vector Machine':
+        model=svm
+        if imb_rect=='No Rectifier':
+            compute_performance(model, X_train_sfs_scaled, y_train,X_test_sfs_scaled,y_test)
+        elif imb_rect=='SMOTE':
+                rect=smt
+                st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+                X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+                st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+                compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)
+        elif imb_rect=='Near Miss':
+            rect=nr
+            st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+            X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+            st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+            compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)    
+        
+    elif classifier == 'Random Forest':
+        model=rforest
+        if imb_rect=='No Rectifier':
+            compute_performance(model, X_train_sfs_scaled, y_train,X_test_sfs_scaled,y_test)
+        elif imb_rect=='SMOTE':
+                rect=smt
+                st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+                X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+                st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+                compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)
+        elif imb_rect=='Near Miss':
+            rect=nr
+            st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+            X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+            st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+            compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)  
+            
+    elif classifier == 'Extra Trees':
+        model=etree
+        if imb_rect=='No Rectifier':
+            compute_performance(model, X_train_sfs_scaled, y_train,X_test_sfs_scaled,y_test)
+        elif imb_rect=='SMOTE':
+                rect=smt
+                st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+                X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+                st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+                compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)
+        elif imb_rect=='Near Miss':
+            rect=nr
+            st.write('Shape of imbalanced y_train: ',np.bincount(y_train))
+            X_train_bal, y_train_bal = rect.fit_sample(X_train_sfs_scaled, y_train)
+            st.write('Shape of balanced y_train: ',np.bincount(y_train_bal))
+            compute_performance(model, X_train_bal, y_train_bal,X_test_sfs_scaled,y_test)
+            
+    
+        
 
 
