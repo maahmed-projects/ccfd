@@ -11,7 +11,7 @@ import streamlit as st
 
 st.title('Credit Card Fraud Detection!')
 
-df = st.cache(pd.read_csv)('creditcard.csv')
+df = st.cache_data(pd.read_csv)('creditcard.csv')
 
 # df = df.sample(frac=0.1, random_state = 48)
 
